@@ -53,7 +53,32 @@ def rotate_polygon(vertices):
             vertices[idx] = Point2D(-point.y, point.x)
         yield tuple(vertices)
 
-def complete_polygon_rec(nb_vertices, highest_subdivision, enclosing_vectors, vertices, ordered_fractions):
+
+def check_enclosed(points, convex_shape):
+    sign = None
+    for p in points:
+        for i in range(len(convex_shape)):
+            v0 = convex_shape[i-1]
+            v1 = convex_shape[i]
+            s = np.sign(np.cross(p-v0, v1-v0))
+            if s != 0:
+                if sign is None:
+                    sign = s
+                elif sign != s:
+                    return False
+    return True
+
+
+def is_convex(shape):
+    enclosing_vectors = tuple(shape[i] - shape[i-1] for i in range(len(shape)))
+    if len(set(np.sign(np.cross(enclosing_vectors[i], enclosing_vectors[i-1]))
+               for i in range(len(enclosing_vectors)))) > 1:
+        return False
+    else:
+        return True
+
+
+def complete_polygon_rec(nb_vertices, highest_subdivision, within, vertices, ordered_fractions):
     if len(vertices) == nb_vertices:
         if np.sign(np.cross(vertices[0]-vertices[-1], vertices[-1]-vertices[-2])) == 1:
             yield GenericRing(tuple(Point2D(v[0], v[1]) for v in vertices), rotate_polygon)
@@ -64,8 +89,9 @@ def complete_polygon_rec(nb_vertices, highest_subdivision, enclosing_vectors, ve
                 if all(v == v0):
                     break
             else:
-                if np.sign(np.cross(v-vertices[-1], vertices[-1]-vertices[-2])) == 1:
-                    yield from complete_polygon_rec(nb_vertices, highest_subdivision, enclosing_vectors, vertices + (v,), ordered_fractions)
+                if check_enclosed((vertices[-1], v), within) \
+                  and np.sign(np.cross(v-vertices[-1], vertices[-1]-vertices[-2])) == 1:
+                    yield from complete_polygon_rec(nb_vertices, highest_subdivision, within, vertices + (v,), ordered_fractions)
 
 
 def generate_convex_polygon(nb_vertices, highest_subdivision, within=((-1,-1), (1,-1), (1,1), (-1,1)), pbar=None):
@@ -80,9 +106,7 @@ def generate_convex_polygon(nb_vertices, highest_subdivision, within=((-1,-1), (
     
     generated = set()
     within = tuple(np.array(vert) for vert in within)
-    enclosing_vectors = tuple(within[i] - within[i-1] for i in range(len(within)))
-    if len(set(np.sign(np.cross(enclosing_vectors[i], enclosing_vectors[i-1]))
-               for i in range(len(enclosing_vectors)))) > 1:
+    if not is_convex(within):
         raise ValueError("Enclosing polygon is not convex.")
     
     ordered_fractions = generate_fractions(highest_subdivision)
@@ -95,9 +119,10 @@ def generate_convex_polygon(nb_vertices, highest_subdivision, within=((-1,-1), (
 
         v1 = np.array((x1*2-1, y1*2-1))
         v2 = np.array((x2*2-1, y2*2-1))
-        if all(v1 == v2):
+        if all(v1 == v2) or not check_enclosed((v1, v2), within):
             continue
-        for polygon_ring in complete_polygon_rec(nb_vertices, highest_subdivision, enclosing_vectors, (v1, v2), ordered_fractions):
+
+        for polygon_ring in complete_polygon_rec(nb_vertices, highest_subdivision, within, (v1, v2), ordered_fractions):
             if polygon_ring not in generated:
                 generated.add(polygon_ring)
                 yield polygon_ring
