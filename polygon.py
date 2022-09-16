@@ -90,6 +90,9 @@ def generate_convex_polygon(nb_vertices, highest_subdivision, within=((-1,-1), (
         pbar.total = len(ordered_fractions)**4
     
     for x1, y1, x2, y2 in itertools.product(ordered_fractions, repeat=4):
+        if pbar is not None:
+            pbar.update()
+
         v1 = np.array((x1*2-1, y1*2-1))
         v2 = np.array((x2*2-1, y2*2-1))
         if all(v1 == v2):
@@ -98,9 +101,6 @@ def generate_convex_polygon(nb_vertices, highest_subdivision, within=((-1,-1), (
             if polygon_ring not in generated:
                 generated.add(polygon_ring)
                 yield polygon_ring
-
-        if pbar is not None:
-            pbar.update()
 
 
 if __name__ == "__main__":
