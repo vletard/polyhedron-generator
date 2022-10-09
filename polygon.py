@@ -81,7 +81,7 @@ def is_convex(shape):
 def complete_polygon_rec(nb_vertices, highest_subdivision, within, vertices, ordered_fractions):
     if len(vertices) == nb_vertices:
         if np.sign(np.cross(vertices[0]-vertices[-1], vertices[-1]-vertices[-2])) == 1:
-            yield GenericRing(tuple(Point2D(v[0], v[1]) for v in vertices), rotate_polygon)
+            yield GenericRing(tuple(Point2D(v[0], v[1]) for v in vertices))
     else:
         for x, y in itertools.product(ordered_fractions, repeat=2):
             v = np.array((x*2-1, y*2-1))
@@ -107,7 +107,7 @@ def generate_convex_polygon(nb_vertices, highest_subdivision, within=((-1,-1), (
     generated = set()
     within = tuple(np.array(vert) for vert in within)
     if not is_convex(within):
-        raise ValueError("Enclosing polygon is not convex.")
+        raise ValueError("Enclosing polygon is not convex: {}".format(str(within)))
     
     ordered_fractions = generate_fractions(highest_subdivision)
     if pbar is not None:
@@ -128,6 +128,13 @@ def generate_convex_polygon(nb_vertices, highest_subdivision, within=((-1,-1), (
                 yield polygon_ring
 
 
+def jsonify_vertices(vertices, nb_digits):
+    return tuple(
+      (round(float(v.x), nb_digits), round(float(v.y), nb_digits))
+      for v in vertices
+    )
+
+
 if __name__ == "__main__":
     import argparse
     
@@ -144,11 +151,7 @@ if __name__ == "__main__":
 
         with open(args.json_output, "w") as fp:
             polys = tuple(generate_convex_polygon(args.nb_vertices, args.max_denom, pbar=tqdm.tqdm()))
-            json.dump([[(
-                    round(float(v.x), nb_digits),
-                    round(float(v.y), nb_digits),
-                  ) for v in poly.key]
-                for poly in polys], fp)
+            json.dump([jsonify_vertices(poly.key, nb_digits) for poly in polys], fp)
             print("{} polygons generated.".format(len(polys)))
     else:
         for poly in generate_convex_polygon(args.nb_vertices, args.max_denom):
