@@ -65,8 +65,9 @@ def generate_polyhedron_rec(n_layers, max_den, max_vert, layer_stack=(), within=
 def generate_polyhedron(max_polygon_vertices, max_denom):
     layer_heights = generate_fractions(max_denom)
 
-    yield from generate_polyhedron_rec(len(layer_heights), max_denom,
-                                       max_polygon_vertices)
+    for polyhedron in generate_polyhedron_rec(len(layer_heights), max_denom,
+                                       max_polygon_vertices):
+        yield tuple(zip(layer_heights, polyhedron))
 
 if __name__ == "__main__":
     import argparse
@@ -85,7 +86,7 @@ if __name__ == "__main__":
         with open(args.json_output, "w") as fp:
             polyhedrons = tuple(generate_polyhedron(args.nb_vertices, args.max_denom))
             json.dump([
-              [jsonify_vertices(layer, nb_digits) for layer in ph]
+              [(round(float(h), nb_digits), jsonify_vertices(layer, nb_digits)) for h, layer in ph]
               for ph in polyhedrons
             ], fp)
             print("{} polyhedrons generated.".format(len(polyhedrons)))
